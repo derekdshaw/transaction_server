@@ -1,0 +1,5 @@
+.venv
+__pycache__
+/models/bert_classifier/checkpoint-*
+/models/**/*.safetensors
+

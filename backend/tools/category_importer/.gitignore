@@ -1,0 +1,45 @@
+# Rust
+/target/
+**/*.rs.bk
+
+# Dependencies
+/Cargo.lock
+
+# Environment variables
+.env
+.env.local
+
+# Database
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Debug symbols
+*.pdb
+*.map
+
+# Build artifacts
+*.so
+*.dll
+*.dylib
+*.o
+*.a
+*.lib
+*.exp
+*.ilk
+*.obj
+*.exe
+
+# SQLx
+/.sqlx
