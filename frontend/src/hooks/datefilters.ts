@@ -44,3 +44,26 @@ export function useDateFilters(storageKey: string, defaultStartDate?: string, de
     setDateFilters,
   }), [dates.startDate, dates.endDate, setDateFilters]);
 }
+
+/**
+ * Retrieves the start and end dates from localStorage for a given key
+ * @param storageKey The key used to store the date filters in localStorage
+ * @returns An object containing startDate and endDate as Dayjs objects, or null if not found
+ */
+export function getDateFilters(storageKey: string): { startDate: Dayjs | null; endDate: Dayjs | null } | null {
+  try {
+    const stored = localStorage.getItem(storageKey);
+    if (!stored) return null;
+    
+    const parsed = JSON.parse(stored);
+    if (!parsed) return null;
+    
+    return {
+      startDate: parsed.startDate ? dayjs(parsed.startDate) : null,
+      endDate: parsed.endDate ? dayjs(parsed.endDate) : null
+    };
+  } catch (error) {
+    console.error('Error retrieving date filters:', error);
+    return null;
+  }
+}

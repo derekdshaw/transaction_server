@@ -1,21 +1,20 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { PieChart } from '@mui/x-charts/PieChart';
 import { useTransactionsByDateRange } from '../hooks/transactions';
+import { getDateFilters } from '../hooks/datefilters';
 import {
     Card,
     CardContent,
     Typography,
+    Grid,
+    Box,
     CircularProgress,
     Alert,
-    Box,
-    Stack,
-    FormControl,
     Table,
-    Sheet
+    Sheet,
 } from '@mui/joy';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs, { Dayjs } from 'dayjs';
-import { useDateFilters } from '../hooks/datefilters';
+import StartEndDatePicker from './StartEndDatePicker';
 
 export default function Dashboard() {
 
@@ -24,59 +23,57 @@ export default function Dashboard() {
     const chartContainerRef = useRef<HTMLDivElement>(null);
 
     const DASHBOARD_DATE_FILTERS_STORAGE_KEY = 'dashboardDateFilters';
-    const defaultStartDate = useMemo(() => dayjs().startOf('month').format('YYYY-MM-DD'), []);
-    const defaultEndDate = useMemo(() => dayjs().format('YYYY-MM-DD'), []);
+    
+    // Initialize with default dates first, then update from localStorage if available
+    const [dateRange, setDateRange] = useState(() => {
+        const savedDates = getDateFilters(DASHBOARD_DATE_FILTERS_STORAGE_KEY);
+        return {
+            startDate: savedDates?.startDate || dayjs().startOf('month'),
+            endDate: savedDates?.endDate || dayjs()
+        };
+    });
 
-    const { 
-        startDate: startDateStr, 
-        endDate: endDateStr, 
-        setDateFilters 
-    } = useDateFilters(DASHBOARD_DATE_FILTERS_STORAGE_KEY, defaultStartDate, defaultEndDate);
+    const { transactions, loading, error, refetch } = useTransactionsByDateRange(
+        dateRange.startDate.format('YYYY-MM-DD'),
+        dateRange.endDate.format('YYYY-MM-DD')
+    );
 
-    const { startDate, endDate } = useMemo(() => ({
-        startDate: startDateStr ? dayjs(startDateStr) : dayjs(defaultStartDate),
-        endDate: endDateStr ? dayjs(endDateStr) : dayjs(defaultEndDate),
-    }), [startDateStr, endDateStr, defaultStartDate, defaultEndDate]);
+    // Memoize the date strings to prevent unnecessary refetches
+    const startDateStr = useMemo(() => dateRange.startDate.format('YYYY-MM-DD'), [dateRange.startDate]);
+    const endDateStr = useMemo(() => dateRange.endDate.format('YYYY-MM-DD'), [dateRange.endDate]);
 
-    const { transactions, loading, error, refetch } = useTransactionsByDateRange(startDate.format('YYYY-MM-DD'), endDate.format('YYYY-MM-DD'));
+    // Handle date range changes with deep comparison
+    const handleDateRangeChange = useCallback((newStartDate: Dayjs, newEndDate: Dayjs) => {
+        setDateRange(prev => {
+            const startChanged = !newStartDate.isSame(prev.startDate, 'day');
+            const endChanged = !newEndDate.isSame(prev.endDate, 'day');
+            
+            if (startChanged || endChanged) {
+                return { startDate: newStartDate, endDate: newEndDate };
+            }
+            return prev;
+        });
+    }, []);
 
-    // Handle date changes
-    const handleStartDateChange = useCallback((date: Dayjs | null) => {
-        if (!date) return;
-        setDateFilters(prev => ({
-            startDate: date,
-            endDate: prev?.endDate ? dayjs(prev.endDate) : dayjs()
-        }));
-    }, [setDateFilters]);
-
-    const handleEndDateChange = useCallback((date: Dayjs | null) => {
-        if (!date) return;
-        setDateFilters(prev => ({
-            startDate: prev?.startDate ? dayjs(prev.startDate) : dayjs().startOf('month'),
-            endDate: date
-        }));
-    }, [setDateFilters]);
-
-    // Initial data fetch
+    // Refetch when date range changes, using the memoized date strings
     useEffect(() => {
         refetch();
-    }, [startDate, endDate, refetch]); // Only refetch when string dates change
+    }, [startDateStr, endDateStr, refetch]);
 
     const dateFilteredTransactions = useMemo(() => {
         if (!transactions || transactions.length === 0) return [];
+        
         return transactions.filter(tx => {
             const txDate = dayjs(tx.date);
-            return (!startDate || (txDate.isAfter(startDate) || txDate.isSame(startDate, 'day')) && 
-                   (!endDate || txDate.isBefore(endDate) || txDate.isSame(endDate, 'day')));
+            return (txDate.isAfter(dateRange.startDate, 'day') || txDate.isSame(dateRange.startDate, 'day')) && 
+                   (txDate.isBefore(dateRange.endDate, 'day') || txDate.isSame(dateRange.endDate, 'day'));
         });
-    }, [transactions, startDate, endDate]);
+    }, [transactions, dateRange.startDate?.valueOf(), dateRange.endDate?.valueOf()]);
 
-    useEffect(() => {
-        if (!dateFilteredTransactions || dateFilteredTransactions.length === 0) {
-            setCategoryData([]);
-            return;
-        }
-
+    // Use a more specific dependency to prevent unnecessary recalculations
+    const categoryDataString = useMemo(() => {
+        if (!dateFilteredTransactions || dateFilteredTransactions.length === 0) return JSON.stringify([]);
+        
         const categoryMap = new Map<number, { id: number; value: number; label: string }>();
         
         dateFilteredTransactions.forEach(tx => {
@@ -90,9 +87,18 @@ export default function Dashboard() {
             current.value += Math.abs(tx.amount);
             categoryMap.set(categoryId, current);
         });
+        
+        return JSON.stringify(Array.from(categoryMap.values()));
+    }, [dateFilteredTransactions?.length, JSON.stringify(dateFilteredTransactions?.map(tx => ({
+        categoryId: tx?.categoryId,
+        categoryName: tx?.categoryName,
+        amount: tx?.amount
+    })))]);
 
-        setCategoryData(Array.from(categoryMap.values()));
-    }, [dateFilteredTransactions]);
+    // Update categoryData only when the stringified data changes
+    useEffect(() => {
+        setCategoryData(JSON.parse(categoryDataString));
+    }, [categoryDataString]);
 
     const filteredTransactions = useMemo(() => {
         if (!selectedCategoryId) return dateFilteredTransactions;
@@ -185,34 +191,13 @@ export default function Dashboard() {
                 <Typography level="body-sm" sx={{ pr: 6 }}>
                     Click on a category in the pie chart to filter transactions by that category. Click anywhere else on the chart to reset the filter to no category.
                 </Typography>
-                <Stack direction="row" spacing={2}>
-                    <FormControl>
-                        <DatePicker
-                            label="Start Date"
-                            value={startDate}
-                            onChange={(newValue: Dayjs | null) => handleStartDateChange(newValue)}
-                            slotProps={{
-                                textField: {
-                                    variant: 'outlined',
-                                    fullWidth: true
-                                }
-                            }}
-                        />
-                    </FormControl>
-                    <FormControl>
-                        <DatePicker
-                            label="End Date"
-                            value={endDate}
-                            onChange={(newValue: Dayjs | null) => handleEndDateChange(newValue)}
-                            slotProps={{
-                                textField: {
-                                    variant: 'outlined',
-                                    fullWidth: true
-                                }
-                            }}
-                        />
-                    </FormControl>
-                </Stack>
+                
+                    <StartEndDatePicker
+                        storageKey={DASHBOARD_DATE_FILTERS_STORAGE_KEY}
+                        onDatesChange={handleDateRangeChange}
+                        className="w-full"
+                    />
+                
             </Box>
             
             <Card variant="outlined" sx={{ maxWidth: '100%', mx: 'auto' }}>

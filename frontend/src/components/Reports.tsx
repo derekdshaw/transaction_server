@@ -20,10 +20,10 @@ import { useDateFilters } from '../hooks/datefilters';
 const REPORTS_DATE_FILTERS_STORAGE_KEY = 'reportsDateFilters';
 
 export default function Reports() {
-    const { 
-        startDate: startDateStr, 
-        endDate: endDateStr, 
-        setDateFilters 
+    const {
+        startDate: startDateStr,
+        endDate: endDateStr,
+        setDateFilters
     } = useDateFilters(REPORTS_DATE_FILTERS_STORAGE_KEY);
 
     // Convert string dates to Dayjs objects for the DatePicker
@@ -33,17 +33,17 @@ export default function Reports() {
     // Use a ref to track first render and initial fetch
     const initialFetch = useRef(true);
 
-    const { 
-        categorySummaries, 
-        loading, 
-        error, 
-        refetch 
+    const {
+        categorySummaries,
+        loading,
+        error,
+        refetch
     } = useTransactionsSummaryByCategory(
         startDate?.format('YYYY-MM-DD') || dayjs().startOf('month').format('YYYY-MM-DD'),
         endDate?.format('YYYY-MM-DD') || dayjs().endOf('day').format('YYYY-MM-DD')
     );
 
-          // Handle date changes
+    // Handle date changes
     const handleStartDateChange = useCallback((date: Dayjs | null) => {
         if (!date) return;
         setDateFilters(prev => ({
@@ -74,17 +74,15 @@ export default function Reports() {
         setDateFilters(prev => ({
             startDate: dayjs().startOf('month'),
             endDate: dayjs().endOf('day')
-          }));
+        }));
     };
 
     return (
         <Box>
-        <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography level="title-lg">
-                Transaction Reports
-            </Typography>
-
-            
+            <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography level="title-lg">
+                    Transaction Reports
+                </Typography>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }}>
                     <FormControl size="sm" sx={{ flex: 1 }}>
                         <FormLabel>Start Date</FormLabel>
@@ -136,38 +134,38 @@ export default function Reports() {
                 </Box>
             ) : categorySummaries ? (
                 <Box sx={{ overflow: 'auto' }}>
-                        <Table hoverRow variant="outlined">
-                            <thead>
-                                <tr>
-                                    <th style={{ textAlign: 'left', padding: '12px 16px' }}>Category</th>
-                                    <th style={{ textAlign: 'right', padding: '12px 16px' }}>Transaction Count</th>
-                                    <th style={{ textAlign: 'right', padding: '12px 16px' }}>Total Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {categorySummaries.length > 0 ? (
-                                    categorySummaries.map((row) => (
-                                        <tr key={row.categoryId}>
-                                            <td style={{ padding: '12px 16px' }}>{row.categoryName || 'Uncategorized'}</td>
-                                            <td style={{ textAlign: 'right', padding: '12px 16px' }}>{row.transactionCount}</td>
-                                            <td style={{ textAlign: 'right', padding: '12px 16px' }}>
-                                                {new Intl.NumberFormat('en-US', {
-                                                    style: 'currency',
-                                                    currency: 'USD',
-                                                }).format(row.totalAmount)}
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan={3} style={{ textAlign: 'center', padding: '12px 16px' }}>
-                                            No transactions found for the selected date range
+                    <Table hoverRow variant="outlined">
+                        <thead>
+                            <tr>
+                                <th style={{ textAlign: 'left', padding: '12px 16px' }}>Category</th>
+                                <th style={{ textAlign: 'right', padding: '12px 16px' }}>Transaction Count</th>
+                                <th style={{ textAlign: 'right', padding: '12px 16px' }}>Total Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {categorySummaries.length > 0 ? (
+                                categorySummaries.map((row) => (
+                                    <tr key={row.categoryId}>
+                                        <td style={{ padding: '12px 16px' }}>{row.categoryName || 'Uncategorized'}</td>
+                                        <td style={{ textAlign: 'right', padding: '12px 16px' }}>{row.transactionCount}</td>
+                                        <td style={{ textAlign: 'right', padding: '12px 16px' }}>
+                                            {new Intl.NumberFormat('en-US', {
+                                                style: 'currency',
+                                                currency: 'USD',
+                                            }).format(row.totalAmount)}
                                         </td>
                                     </tr>
-                                )}
-                            </tbody>
-                        </Table>
-                    </Box>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={3} style={{ textAlign: 'center', padding: '12px 16px' }}>
+                                        No transactions found for the selected date range
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </Table>
+                </Box>
             ) : null}
         </Box>
     );
