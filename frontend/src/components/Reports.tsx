@@ -1,37 +1,29 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
     Box,
     Typography,
     CircularProgress,
     Alert,
     Button,
-    Container,
     Stack,
-    FormControl,
-    FormLabel,
-    Card,
     Table,
 } from '@mui/joy';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs, { Dayjs } from 'dayjs';
 import { useTransactionsSummaryByCategory } from '../hooks/transactions';
-import { useDateFilters } from '../hooks/datefilters';
+import { getDateFilters } from '../hooks/datefilters';
+import StartEndDatePicker from './StartEndDatePicker';
 
 const REPORTS_DATE_FILTERS_STORAGE_KEY = 'reportsDateFilters';
 
 export default function Reports() {
-    const {
-        startDate: startDateStr,
-        endDate: endDateStr,
-        setDateFilters
-    } = useDateFilters(REPORTS_DATE_FILTERS_STORAGE_KEY);
 
-    // Convert string dates to Dayjs objects for the DatePicker
-    const startDate = startDateStr ? dayjs(startDateStr) : null;
-    const endDate = endDateStr ? dayjs(endDateStr) : null;
-
-    // Use a ref to track first render and initial fetch
-    const initialFetch = useRef(true);
+    const [dateRange, setDateRange] = useState(() => {
+        const savedDates = getDateFilters(REPORTS_DATE_FILTERS_STORAGE_KEY);
+        return {
+            startDate: savedDates?.startDate || dayjs().startOf('month'),
+            endDate: savedDates?.endDate || dayjs()
+        };
+    });
 
     const {
         categorySummaries,
@@ -39,88 +31,56 @@ export default function Reports() {
         error,
         refetch
     } = useTransactionsSummaryByCategory(
-        startDate?.format('YYYY-MM-DD') || dayjs().startOf('month').format('YYYY-MM-DD'),
-        endDate?.format('YYYY-MM-DD') || dayjs().endOf('day').format('YYYY-MM-DD')
+        dateRange.startDate.format('YYYY-MM-DD') || dayjs().startOf('month').format('YYYY-MM-DD'),
+        dateRange.endDate.format('YYYY-MM-DD') || dayjs().endOf('day').format('YYYY-MM-DD')
     );
 
-    // Handle date changes
-    const handleStartDateChange = useCallback((date: Dayjs | null) => {
-        if (!date) return;
-        setDateFilters(prev => ({
-            startDate: date,
-            endDate: prev?.endDate ? dayjs(prev.endDate) : dayjs()
-        }));
-    }, [setDateFilters]);
+    // Memoize the date strings to prevent unnecessary refetches
+    const startDateStr = useMemo(() => dateRange.startDate.format('YYYY-MM-DD'), [dateRange.startDate]);
+    const endDateStr = useMemo(() => dateRange.endDate.format('YYYY-MM-DD'), [dateRange.endDate]);
 
-    const handleEndDateChange = useCallback((date: Dayjs | null) => {
-        if (!date) return;
-        setDateFilters(prev => ({
-            startDate: prev?.startDate ? dayjs(prev.startDate) : dayjs().startOf('month'),
-            endDate: date
-        }));
-    }, [setDateFilters]);
-
-    // Initial data fetch
+    // Refetch when date range changes, using the memoized date strings
     useEffect(() => {
-        if (initialFetch.current) {
-            initialFetch.current = false;
-            return;
-        }
         refetch();
-    }, [startDateStr, endDateStr, refetch]); // Only refetch when string dates change
-
-
+    }, [startDateStr, endDateStr, refetch]);
     const handleResetFilters = () => {
-        setDateFilters(prev => ({
+        setDateRange(prev => ({
             startDate: dayjs().startOf('month'),
             endDate: dayjs().endOf('day')
         }));
     };
 
+    const handleDateRangeChange = useCallback((newStartDate: Dayjs, newEndDate: Dayjs) => {
+        setDateRange(prev => {
+            const startChanged = !newStartDate.isSame(prev.startDate, 'day');
+            const endChanged = !newEndDate.isSame(prev.endDate, 'day');
+
+            if (startChanged || endChanged) {
+                return { startDate: newStartDate, endDate: newEndDate };
+            }
+            return prev;
+        });
+    }, []);
+
     return (
         <Box>
-            <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box sx={{ p:2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap'}}>
                 <Typography level="title-lg">
                     Transaction Reports
                 </Typography>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }}>
-                    <FormControl size="sm" sx={{ flex: 1 }}>
-                        <FormLabel>Start Date</FormLabel>
-                        <DatePicker
-                            value={startDate}
-                            onChange={(newValue) => handleStartDateChange(newValue)}
-                            slotProps={{
-                                textField: {
-                                    size: 'small',
-                                    fullWidth: true,
-                                },
-                            }}
-                        />
-                    </FormControl>
-                    <FormControl size="sm" sx={{ flex: 1 }}>
-                        <FormLabel>End Date</FormLabel>
-                        <DatePicker
-                            value={endDate}
-                            onChange={(newValue) => handleEndDateChange(newValue)}
-                            slotProps={{
-                                textField: {
-                                    size: 'small',
-                                    fullWidth: true,
-                                },
-                            }}
-                        />
-                    </FormControl>
-                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-end' }}>
-                        <Button
-                            variant="outlined"
-                            onClick={handleResetFilters}
-                            disabled={loading}
-                            sx={{ height: '40px' }}
-                        >
-                            Reset to Current Month
-                        </Button>
-                    </Box>
-                </Stack>
+                <StartEndDatePicker
+                    storageKey={REPORTS_DATE_FILTERS_STORAGE_KEY}
+                    onDatesChange={handleDateRangeChange}
+                    className="w-full"
+                />
+                <Button
+                    variant="outlined"
+                    onClick={handleResetFilters}
+                    disabled={loading}
+                    sx={{ height: '40px',  }}
+                >
+                    Reset
+                </Button>
             </Box>
             {error && (
                 <Alert color="danger" sx={{ mb: 3 }}>

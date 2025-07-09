@@ -6,7 +6,6 @@ import {
     Card,
     CardContent,
     Typography,
-    Grid,
     Box,
     CircularProgress,
     Alert,
@@ -15,10 +14,17 @@ import {
 } from '@mui/joy';
 import dayjs, { Dayjs } from 'dayjs';
 import StartEndDatePicker from './StartEndDatePicker';
+import { useCategories } from '../hooks/categories';
 
 export default function Dashboard() {
 
-    const [categoryData, setCategoryData] = useState<Array<{ id: number, value: number, label: string }>>([]);
+    const [categoryData, setCategoryData] = useState<Array<{ 
+        id: number; 
+        value: number; 
+        label: string;
+        icon?: string;
+        color?: string;
+    }>>([]);
     const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
     const chartContainerRef = useRef<HTMLDivElement>(null);
 
@@ -37,6 +43,8 @@ export default function Dashboard() {
         dateRange.startDate.format('YYYY-MM-DD'),
         dateRange.endDate.format('YYYY-MM-DD')
     );
+
+    const { categories, loading: categoriesLoading, error: categoriesError } = useCategories();
 
     // Memoize the date strings to prevent unnecessary refetches
     const startDateStr = useMemo(() => dateRange.startDate.format('YYYY-MM-DD'), [dateRange.startDate]);
@@ -70,30 +78,58 @@ export default function Dashboard() {
         });
     }, [transactions, dateRange.startDate?.valueOf(), dateRange.endDate?.valueOf()]);
 
-    // Use a more specific dependency to prevent unnecessary recalculations
+    // Create a lookup map for category metadata (icon and color)
+    const categoryMetadata = useMemo(() => {
+        const metadata = new Map<number, { icon?: string; color?: string }>();
+        categories?.forEach(cat => {
+            if (cat.id) {
+                metadata.set(cat.id, {
+                    icon: cat.icon,
+                    color: cat.color
+                });
+            }
+        });
+        return metadata;
+    }, [categories]);
+
+    // Use a string representation of the data to prevent unnecessary re-renders
     const categoryDataString = useMemo(() => {
         if (!dateFilteredTransactions || dateFilteredTransactions.length === 0) return JSON.stringify([]);
         
-        const categoryMap = new Map<number, { id: number; value: number; label: string }>();
+        const categoryMap = new Map<number, { 
+            id: number; 
+            value: number; 
+            label: string;
+            icon?: string;
+            color?: string;
+        }>();
         
         dateFilteredTransactions.forEach(tx => {
             const categoryId = tx.categoryId || 0;
             const categoryName = tx.categoryName || 'Uncategorized';
+            const metadata = categoryMetadata.get(categoryId) || {};
+            
             const current = categoryMap.get(categoryId) || { 
                 id: categoryId, 
                 value: 0, 
-                label: categoryName 
+                label: categoryName,
+                ...metadata
             };
+            
             current.value += Math.abs(tx.amount);
             categoryMap.set(categoryId, current);
         });
         
         return JSON.stringify(Array.from(categoryMap.values()));
-    }, [dateFilteredTransactions?.length, JSON.stringify(dateFilteredTransactions?.map(tx => ({
-        categoryId: tx?.categoryId,
-        categoryName: tx?.categoryName,
-        amount: tx?.amount
-    })))]);
+    }, [
+        dateFilteredTransactions?.length, 
+        JSON.stringify(dateFilteredTransactions?.map(tx => ({
+            categoryId: tx?.categoryId,
+            categoryName: tx?.categoryName,
+            amount: tx?.amount
+        }))),
+        categoryMetadata // Add categoryMetadata to dependencies
+    ]);
 
     // Update categoryData only when the stringified data changes
     useEffect(() => {
@@ -161,7 +197,7 @@ export default function Dashboard() {
         };
     }, [categoryData]);
 
-    if (loading) {
+    if (loading || categoriesLoading) {
         return (
             <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
                 <CircularProgress />
@@ -169,11 +205,11 @@ export default function Dashboard() {
         );
     }
 
-    if (error) {
-        const gqlMessages = error.graphQLErrors
+    if (error || categoriesError) {
+        const gqlMessages = error?.graphQLErrors
             ?.map(gqlErr => gqlErr.message)
             .join('; ');
-        const netMessage = error.fetchError?.message;
+        const netMessage = error?.fetchError?.message;
         const displayMessage = gqlMessages || netMessage || 'An unexpected error occurred';
 
         return (
@@ -184,22 +220,19 @@ export default function Dashboard() {
     }
 
     return (
-
         <Box sx={{ p: 2 }}>
-            <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box sx={{ p: 2,display: 'flex', justifyContent: 'space-between' }}>
                 <Typography level="title-lg">Spending by Category</Typography>
-                <Typography level="body-sm" sx={{ pr: 6 }}>
+                <Typography level="body-sm" width="300px">
                     Click on a category in the pie chart to filter transactions by that category. Click anywhere else on the chart to reset the filter to no category.
                 </Typography>
-                
-                    <StartEndDatePicker
-                        storageKey={DASHBOARD_DATE_FILTERS_STORAGE_KEY}
-                        onDatesChange={handleDateRangeChange}
-                        className="w-full"
-                    />
+                <StartEndDatePicker
+                    storageKey={DASHBOARD_DATE_FILTERS_STORAGE_KEY}
+                    onDatesChange={handleDateRangeChange}
+                    className="w-full"
+                />
                 
             </Box>
-            
             <Card variant="outlined" sx={{ maxWidth: '100%', mx: 'auto' }}>
                 <CardContent>
                     {categoryData.length > 0 ? (
@@ -215,9 +248,8 @@ export default function Dashboard() {
                                 height={400}
                                 slotProps={{
                                     legend: {
-                                        direction: 'row',
+                                        direction: 'horizontal',
                                         position: { vertical: 'bottom', horizontal: 'center' },
-                                        padding: 0,
                                     },
                                 }}
                             />

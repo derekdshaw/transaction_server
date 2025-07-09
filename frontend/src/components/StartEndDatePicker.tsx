@@ -4,7 +4,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs, { Dayjs } from 'dayjs';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useDateFilters } from '../hooks/datefilters';
-import { FormControl, FormLabel, Stack } from '@mui/joy';
+import { FormControl, FormLabel, Stack, Box } from '@mui/joy';
 
 interface StartEndDatePickerProps {
     storageKey: string;
@@ -86,38 +86,34 @@ export default function StartEndDatePicker({
     }, [startDateStr, endDateStr, startDate, endDate, onDatesChange]);
 
     return (
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }}>
-            <FormControl size="sm" sx={{ flex: 1 }}>
-                <DatePicker
-                    label="Start Date"
-                    value={startDate}
-                    onChange={handleStartDateChange}
-                    format={labelFormat}
-                    disableFuture={disableFuture}
-                    slotProps={{
-                        textField: {
-                            size: 'small',
-                            variant: 'outlined',
-                        },
-                    }}
-                />
-            </FormControl>
-            <FormControl size="sm" sx={{ flex: 1 }}>
-                <DatePicker
-                    label="End Date"
-                    value={endDate}
-                    onChange={handleEndDateChange}
-                    format={labelFormat}
-                    disableFuture={disableFuture}
-                    slotProps={{
-                        textField: {
-                            size: 'small',
-                            variant: 'outlined',
-                        },
-                    }}
-                    minDate={startDate}
-                />
-            </FormControl>
-        </Stack>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', alignContent: 'flex-start', flexWrap: 'wrap' }}>
+            <DatePicker
+                label="Start Date"
+                value={startDate}
+                onChange={handleStartDateChange}
+                format={labelFormat}
+                disableFuture={disableFuture}
+                slotProps={{
+                    textField: {
+                        size: 'small',
+                        variant: 'outlined',
+                    },
+                }}
+            />
+            <DatePicker
+                label="End Date"
+                value={endDate}
+                onChange={handleEndDateChange}
+                format={labelFormat}
+                disableFuture={disableFuture}
+                slotProps={{
+                    textField: {
+                        size: 'small',
+                        variant: 'outlined',
+                    },
+                }}
+                minDate={startDate}
+            />
+        </Box>
     );
 }

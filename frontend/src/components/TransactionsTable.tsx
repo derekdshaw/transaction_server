@@ -1,5 +1,5 @@
 // src/components/TransactionsTable.tsx
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import Table from "@mui/joy/Table";
 import Sheet from "@mui/joy/Sheet";
 import CircularProgress from '@mui/joy/CircularProgress';
@@ -9,9 +9,9 @@ import ArrowDropUpIcon from '@mui/icons-material/ArrowUpward';
 import { useTransactions, type Transaction } from '../hooks/transactions';
 import { useUpdateTransaction } from '../hooks/transactions';
 import { Input, Stack, FormControl, FormLabel, Select, Option, Box } from '@mui/joy';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs, { Dayjs } from 'dayjs';
-import { useDateFilters } from '../hooks/datefilters';
+import { getDateFilters } from '../hooks/datefilters';
+import StartEndDatePicker from './StartEndDatePicker';
 
 type SortDirection = 'asc' | 'desc' | null;
 
@@ -29,24 +29,44 @@ interface FilterValues {
 const TRANSACTIONS_TABLE_DATE_FILTERS_STORAGE_KEY = 'transactionTableDateFilters';
 
 export default function TransactionsTable() {
-  const { transactions: initialTransactions, loading, error } = useTransactions();
+  const { transactions: initialTransactions, loading, error, refetch } = useTransactions();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'date', direction: 'desc' });
-  const { 
-    startDate: startDateStr, 
-    endDate: endDateStr, 
-    setDateFilters 
-  } = useDateFilters(TRANSACTIONS_TABLE_DATE_FILTERS_STORAGE_KEY);
+  const [dateRange, setDateRange] = useState(() => {
+    const savedDates = getDateFilters(TRANSACTIONS_TABLE_DATE_FILTERS_STORAGE_KEY);
+    return {
+      startDate: savedDates?.startDate || dayjs().startOf('month'),
+      endDate: savedDates?.endDate || dayjs()
+    };
+  });
 
-  // Convert string dates to Dayjs objects for the DatePicker
-  const startDate = startDateStr ? dayjs(startDateStr) : null;
-  const endDate = endDateStr ? dayjs(endDateStr) : null;
+  // Memoize the date strings to prevent unnecessary refetches
+  const startDateStr = useMemo(() => dateRange.startDate.format('YYYY-MM-DD'), [dateRange.startDate]);
+  const endDateStr = useMemo(() => dateRange.endDate.format('YYYY-MM-DD'), [dateRange.endDate]);
+
+  // Refetch when date range changes, using the memoized date strings
+  useEffect(() => {
+    refetch();
+  }, [startDateStr, endDateStr, refetch]);
 
   const [filters, setFilters] = useState<FilterValues>({
     description: '',
     amount: '',
     category: ''
   });
+
+  const handleDateRangeChange = useCallback((newStartDate: Dayjs, newEndDate: Dayjs) => {
+    setDateRange(prev => {
+      const startChanged = !newStartDate.isSame(prev.startDate, 'day');
+      const endChanged = !newEndDate.isSame(prev.endDate, 'day');
+
+      if (startChanged || endChanged) {
+        return { startDate: newStartDate, endDate: newEndDate };
+      }
+      return prev;
+    });
+  }, []);
+
   const [editingTransaction, setEditingTransaction] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<{ id: number; name: string } | null>(null);
   const [updateAlert, setUpdateAlert] = useState<{ type: 'success' | 'error', message: string } | null>(null);
@@ -84,8 +104,8 @@ export default function TransactionsTable() {
     // Apply filters
     result = result.filter(tx => {
       const transactionDate = dayjs(tx.date).startOf('day');
-      const curStartDate = startDate?.startOf('day');
-      const curEndDate = endDate?.endOf('day');
+      const curStartDate = dateRange.startDate?.startOf('day');
+      const curEndDate = dateRange.endDate?.endOf('day');
 
       const matchesStartDate = !curStartDate || !transactionDate.isBefore(curStartDate, 'day');
       const matchesEndDate = !curEndDate || !transactionDate.isAfter(curEndDate, 'day');
@@ -125,7 +145,7 @@ export default function TransactionsTable() {
     }
 
     return result;
-  }, [transactions, startDate, endDate, sortConfig, filters]);
+  }, [transactions, dateRange.startDate, dateRange.endDate, sortConfig, filters]);
 
   const handleFilterChange = (field: keyof FilterValues, value: string) => {
     setFilters(prev => ({
@@ -133,20 +153,6 @@ export default function TransactionsTable() {
       [field]: value
     }));
   };
-
-  const handleStartDateChange = (date: Dayjs | null) => {
-    setDateFilters(prev => ({
-      startDate: date,
-      endDate: prev?.endDate ? dayjs(prev.endDate) : null
-    }));
-  };
-
-  const handleEndDateChange = (date: Dayjs | null) => {
-    setDateFilters(prev => ({
-      startDate: prev?.startDate ? dayjs(prev.startDate) : null,
-      endDate: date
-    }));
-  }
 
   const requestSort = (key: keyof Transaction) => {
     let direction: SortDirection = 'asc';
@@ -249,30 +255,11 @@ export default function TransactionsTable() {
       <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'neutral.outlinedBorder' }}>
 
         <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-          <FormControl size="sm" sx={{ width: 180 }}>
-            <FormLabel>Start Date</FormLabel>
-            <DatePicker
-              value={startDate}
-              onChange={handleStartDateChange}
-              slotProps={{
-                textField: {
-                  size: 'small',
-                  variant: 'outlined',
-                },
-              }}
-            />
-          </FormControl>
-          <FormControl size="sm" sx={{ width: 180 }}>
-            <FormLabel>End Date</FormLabel>
-            <DatePicker
-              value={endDate}
-              onChange={handleEndDateChange}
-              slotProps={{
-                textField: {
-                  size: 'small',
-                  variant: 'outlined',
-                },
-              }}
+          <FormControl size="sm" sx={{ width: 510, pt: 3 }}>
+            <StartEndDatePicker
+              storageKey={TRANSACTIONS_TABLE_DATE_FILTERS_STORAGE_KEY}
+              onDatesChange={handleDateRangeChange}
+              className="w-full"
             />
           </FormControl>
           <FormControl size="sm" sx={{ flex: 1 }}>
