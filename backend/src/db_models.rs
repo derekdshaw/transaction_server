@@ -1,10 +1,9 @@
-
 use chrono::{Datelike, NaiveDate};
 use sqlx::types::time::Date;
-use sqlx::types::BigDecimal;
-use sqlx::{FromRow, PgPool};
-use sqlx::Error;
 use sqlx::types::time::OffsetDateTime;
+use sqlx::types::BigDecimal;
+use sqlx::Error;
+use sqlx::{FromRow, PgPool};
 
 #[derive(FromRow, Debug)]
 pub struct DbCategorySummary {
@@ -225,7 +224,10 @@ impl DbTransaction {
         .await
     }
 
-    pub async fn by_category_id(category_id: i32, pool: &PgPool) -> Result<Vec<DbTransaction>, Error> {
+    pub async fn by_category_id(
+        category_id: i32,
+        pool: &PgPool,
+    ) -> Result<Vec<DbTransaction>, Error> {
         sqlx::query_as!(
             DbTransaction,
             r#"
@@ -254,8 +256,18 @@ impl DbTransaction {
         end_date: &NaiveDate,
         pool: &PgPool,
     ) -> Result<Vec<DbTransaction>, Error> {
-        let sql_start_date = Date::from_calendar_date(start_date.year().into(), time::Month::try_from(start_date.month() as u8).expect("Invalid month number"), start_date.day() as u8).unwrap();
-        let sql_end_date = Date::from_calendar_date(end_date.year().into(), time::Month::try_from(end_date.month() as u8).expect("Invalid month number"), end_date.day() as u8).unwrap();
+        let sql_start_date = Date::from_calendar_date(
+            start_date.year(),
+            time::Month::try_from(start_date.month() as u8).expect("Invalid month number"),
+            start_date.day() as u8,
+        )
+        .unwrap();
+        let sql_end_date = Date::from_calendar_date(
+            end_date.year(),
+            time::Month::try_from(end_date.month() as u8).expect("Invalid month number"),
+            end_date.day() as u8,
+        )
+        .unwrap();
         sqlx::query_as!(
             DbTransaction,
             r#"
@@ -286,17 +298,19 @@ impl DbTransaction {
         pool: &PgPool,
     ) -> Result<Vec<DbCategorySummary>, Error> {
         let sql_start_date = Date::from_calendar_date(
-            start_date.year().into(),
+            start_date.year(),
             time::Month::try_from(start_date.month() as u8).expect("Invalid month number"),
-            start_date.day() as u8
-        ).unwrap();
-        
+            start_date.day() as u8,
+        )
+        .unwrap();
+
         let sql_end_date = Date::from_calendar_date(
-            end_date.year().into(),
+            end_date.year(),
             time::Month::try_from(end_date.month() as u8).expect("Invalid month number"),
-            end_date.day() as u8
-        ).unwrap();
-        
+            end_date.day() as u8,
+        )
+        .unwrap();
+
         sqlx::query_as!(
             DbCategorySummary,
             r#"
@@ -329,4 +343,3 @@ impl DbTransaction {
         .await
     }
 }
-

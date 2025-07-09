@@ -1,15 +1,15 @@
-use actix_web::{web, App, HttpServer};
 use actix_cors::Cors;
-use juniper_actix::{graphql_handler, graphiql_handler};
+use actix_web::{web, App, HttpServer};
+use juniper_actix::{graphiql_handler, graphql_handler};
 use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
 
 use crate::gql_schema::GraphQLContext;
 
-mod gql_schema;
-mod db_models;
-mod graphql;
 mod config;
+mod db_models;
+mod gql_schema;
+mod graphql;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -24,16 +24,11 @@ async fn main() -> std::io::Result<()> {
     println!("Starting server in {} mode on {}", env, bind_address);
 
     // Get database connection parameters with error handling
-    let host = config::Config::get_env_var("DB_HOST")
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-    let port = config::Config::get_env_var("DB_PORT")
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-    let user = config::Config::get_env_var("DB_USER")
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-    let password = config::Config::get_env_var("DB_PASSWORD")
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-    let dbname = config::Config::get_env_var("DB_NAME")
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+    let host = config::Config::get_env_var("DB_HOST").map_err(std::io::Error::other)?;
+    let port = config::Config::get_env_var("DB_PORT").map_err(std::io::Error::other)?;
+    let user = config::Config::get_env_var("DB_USER").map_err(std::io::Error::other)?;
+    let password = config::Config::get_env_var("DB_PASSWORD").map_err(std::io::Error::other)?;
+    let dbname = config::Config::get_env_var("DB_NAME").map_err(std::io::Error::other)?;
 
     // Construct database URL
     let database_url = format!(
@@ -45,7 +40,7 @@ async fn main() -> std::io::Result<()> {
         .max_connections(5)
         .connect(&database_url)
         .await
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        .map_err(std::io::Error::other)?;
 
     let context = GraphQLContext { pool };
     let schema = Arc::new(gql_schema::create_schema());
@@ -53,22 +48,16 @@ async fn main() -> std::io::Result<()> {
     // Start the HTTP server
     let server = HttpServer::new(move || {
         let cors = Cors::permissive();
-        
+
         let mut app = App::new()
             .app_data(web::Data::new(schema.clone()))
             .app_data(web::Data::new(context.clone()))
             .wrap(cors)
-            .service(
-                web::resource("/graphql")
-                    .route(web::post().to(graphql_endpoint))
-            );
+            .service(web::resource("/graphql").route(web::post().to(graphql_endpoint)));
 
         // Add GraphiQL interface in development mode
         if is_dev {
-            app = app.service(
-                web::resource("/graphiql")
-                    .route(web::get().to(graphiql_endpoint))
-            );
+            app = app.service(web::resource("/graphiql").route(web::get().to(graphiql_endpoint)));
         }
 
         app
