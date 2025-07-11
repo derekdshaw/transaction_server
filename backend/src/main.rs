@@ -7,7 +7,7 @@ use std::sync::Arc;
 use crate::gql_schema::GraphQLContext;
 
 mod config;
-mod db_models;
+pub mod db_models;
 mod gql_schema;
 mod graphql;
 

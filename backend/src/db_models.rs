@@ -42,7 +42,15 @@ impl DbCategory {
         sqlx::query_as!(
             DbCategory,
             r#"
-            SELECT * FROM categories
+            SELECT 
+                id,
+                name,
+                description,
+                icon,
+                color,
+                created_at,
+                updated_at
+            FROM categories
             ORDER BY name
             "#
         )
@@ -54,7 +62,15 @@ impl DbCategory {
         sqlx::query_as!(
             DbCategory,
             r#"
-            SELECT * FROM categories
+            SELECT 
+                id,
+                name,
+                description,
+                icon,
+                color,
+                created_at,
+                updated_at
+            FROM categories
             WHERE name = $1
             "#,
             name
@@ -70,17 +86,37 @@ impl DbCategory {
         color: Option<String>,
         pool: &PgPool,
     ) -> Result<DbCategory, Error> {
-        sqlx::query_as!(
-            DbCategory,
+        // First insert the category
+        let result = sqlx::query!(
             r#"
             INSERT INTO categories (name, description, icon, color)
             VALUES ($1, $2, $3, $4)
-            RETURNING *
+            RETURNING id
             "#,
             name,
             description,
             icon,
             color
+        )
+        .fetch_one(pool)
+        .await?;
+        
+        // Then fetch the full record
+        sqlx::query_as!(
+            DbCategory,
+            r#"
+            SELECT 
+                id,
+                name,
+                description,
+                icon,
+                color,
+                created_at,
+                updated_at
+            FROM categories 
+            WHERE id = $1
+            "#,
+            result.id
         )
         .fetch_one(pool)
         .await
@@ -108,7 +144,14 @@ impl DbCategory {
                 WHERE id = $5
                 RETURNING *
             )
-            SELECT * FROM updated
+            SELECT id,
+                name,
+                description,
+                icon,
+                color,
+                created_at,
+                updated_at
+            FROM updated
             "#,
             name,
             description,
