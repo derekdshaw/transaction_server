@@ -1,9 +1,11 @@
+use crate::db_traits::{CategoryRepository, TransactionRepository};
+use async_trait::async_trait;
 use chrono::{Datelike, NaiveDate};
 use sqlx::types::time::Date;
 use sqlx::types::time::OffsetDateTime;
 use sqlx::types::BigDecimal;
-use sqlx::Error;
-use sqlx::{FromRow, PgPool};
+use sqlx::FromRow;
+use sqlx::PgPool;
 
 #[derive(FromRow, Debug)]
 pub struct DbCategorySummary {
@@ -37,8 +39,14 @@ pub struct DbTransaction {
     pub updated_at: Option<OffsetDateTime>,
 }
 
-impl DbCategory {
-    pub async fn all(pool: &PgPool) -> Result<Vec<DbCategory>, Error> {
+#[derive(Clone)]
+pub struct PgCategoryRepository {
+    pub pool: PgPool,
+}
+
+#[async_trait]
+impl CategoryRepository for PgCategoryRepository {
+    async fn all(&self) -> Result<Vec<DbCategory>, sqlx::Error> {
         sqlx::query_as!(
             DbCategory,
             r#"
@@ -54,11 +62,11 @@ impl DbCategory {
             ORDER BY name
             "#
         )
-        .fetch_all(pool)
+        .fetch_all(&self.pool)
         .await
     }
 
-    pub async fn find_by_name(name: &str, pool: &PgPool) -> Result<DbCategory, Error> {
+    async fn find_by_name(&self, name: &str) -> Result<DbCategory, sqlx::Error> {
         sqlx::query_as!(
             DbCategory,
             r#"
@@ -75,17 +83,17 @@ impl DbCategory {
             "#,
             name
         )
-        .fetch_one(pool)
+        .fetch_one(&self.pool)
         .await
     }
 
-    pub async fn create(
+    async fn create(
+        &self,
         name: String,
         description: Option<String>,
         icon: Option<String>,
         color: Option<String>,
-        pool: &PgPool,
-    ) -> Result<DbCategory, Error> {
+    ) -> Result<DbCategory, sqlx::Error> {
         // First insert the category
         let result = sqlx::query!(
             r#"
@@ -98,9 +106,9 @@ impl DbCategory {
             icon,
             color
         )
-        .fetch_one(pool)
+        .fetch_one(&self.pool)
         .await?;
-        
+
         // Then fetch the full record
         sqlx::query_as!(
             DbCategory,
@@ -118,18 +126,18 @@ impl DbCategory {
             "#,
             result.id
         )
-        .fetch_one(pool)
+        .fetch_one(&self.pool)
         .await
     }
 
-    pub async fn update(
+    async fn update(
+        &self,
         id: i32,
         name: String,
         description: Option<String>,
         icon: Option<String>,
         color: Option<String>,
-        pool: &PgPool,
-    ) -> Result<DbCategory, Error> {
+    ) -> Result<DbCategory, sqlx::Error> {
         sqlx::query_as!(
             DbCategory,
             r#"
@@ -159,13 +167,19 @@ impl DbCategory {
             color,
             id
         )
-        .fetch_one(pool)
+        .fetch_one(&self.pool)
         .await
     }
 }
 
-impl DbTransaction {
-    pub async fn all(pool: &PgPool) -> Result<Vec<DbTransaction>, Error> {
+#[derive(Clone)]
+pub struct PgTransactionRepository {
+    pub pool: PgPool,
+}
+
+#[async_trait]
+impl TransactionRepository for PgTransactionRepository {
+    async fn all(&self) -> Result<Vec<DbTransaction>, sqlx::Error> {
         sqlx::query_as!(
             DbTransaction,
             r#"
@@ -183,17 +197,17 @@ impl DbTransaction {
             ORDER BY t.date DESC
             "#
         )
-        .fetch_all(pool)
+        .fetch_all(&self.pool)
         .await
     }
 
-    pub async fn create(
+    async fn create(
+        &self,
         amount: BigDecimal,
         description: String,
         date: Date,
         category_id: i32,
-        pool: &PgPool,
-    ) -> Result<DbTransaction, Error> {
+    ) -> Result<DbTransaction, sqlx::Error> {
         sqlx::query_as!(
             DbTransaction,
             r#"
@@ -219,18 +233,18 @@ impl DbTransaction {
             date,
             category_id
         )
-        .fetch_one(pool)
+        .fetch_one(&self.pool)
         .await
     }
 
-    pub async fn update(
+    async fn update(
+        &self,
         id: i32,
         amount: BigDecimal,
         description: String,
         date: Date,
         category_id: i32,
-        pool: &PgPool,
-    ) -> Result<DbTransaction, Error> {
+    ) -> Result<DbTransaction, sqlx::Error> {
         sqlx::query_as!(
             DbTransaction,
             r#"
@@ -263,14 +277,11 @@ impl DbTransaction {
             category_id,
             id
         )
-        .fetch_one(pool)
+        .fetch_one(&self.pool)
         .await
     }
 
-    pub async fn by_category_id(
-        category_id: i32,
-        pool: &PgPool,
-    ) -> Result<Vec<DbTransaction>, Error> {
+    async fn by_category_id(&self, category_id: i32) -> Result<Vec<DbTransaction>, sqlx::Error> {
         sqlx::query_as!(
             DbTransaction,
             r#"
@@ -290,15 +301,15 @@ impl DbTransaction {
             "#,
             category_id
         )
-        .fetch_all(pool)
+        .fetch_all(&self.pool)
         .await
     }
 
-    pub async fn by_date_range(
+    async fn by_date_range(
+        &self,
         start_date: &NaiveDate,
         end_date: &NaiveDate,
-        pool: &PgPool,
-    ) -> Result<Vec<DbTransaction>, Error> {
+    ) -> Result<Vec<DbTransaction>, sqlx::Error> {
         let sql_start_date = Date::from_calendar_date(
             start_date.year(),
             time::Month::try_from(start_date.month() as u8).expect("Invalid month number"),
@@ -331,15 +342,15 @@ impl DbTransaction {
             sql_start_date,
             sql_end_date
         )
-        .fetch_all(pool)
+        .fetch_all(&self.pool)
         .await
     }
 
-    pub async fn sum_by_category(
+    async fn sum_by_category(
+        &self,
         start_date: &NaiveDate,
         end_date: &NaiveDate,
-        pool: &PgPool,
-    ) -> Result<Vec<DbCategorySummary>, Error> {
+    ) -> Result<Vec<DbCategorySummary>, sqlx::Error> {
         let sql_start_date = Date::from_calendar_date(
             start_date.year(),
             time::Month::try_from(start_date.month() as u8).expect("Invalid month number"),
@@ -382,7 +393,7 @@ impl DbTransaction {
             sql_start_date,
             sql_end_date
         )
-        .fetch_all(pool)
+        .fetch_all(&self.pool)
         .await
     }
 }

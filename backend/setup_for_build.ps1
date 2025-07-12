@@ -1,3 +1,8 @@
+# This script should be run before trying to build. It will start a PostgreSQL container, apply migrations, 
+# and prepare offline metadata for SQLx. Docker is required to be installed to make this happen. Otherwise you can
+# set the DATABASE_URL environment variable to point to your own database and run cargo sqlx prepare -- --all-targets --all-features 
+# to prepare offline metadata for SQLx.
+
 # Set environment variables
 $env:DATABASE_URL = "postgres://postgres:postgres@localhost:5432/dev_db"
 $containerName = "sqlx-dev-postgres"

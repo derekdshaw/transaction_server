@@ -3,13 +3,11 @@ use actix_web::{web, App, HttpServer};
 use juniper_actix::{graphiql_handler, graphql_handler};
 use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
-
-use crate::gql_schema::GraphQLContext;
+use transaction_server::db_models::{PgCategoryRepository, PgTransactionRepository};
+use transaction_server::gql_schema;
+use transaction_server::gql_schema::GraphQLContext;
 
 mod config;
-pub mod db_models;
-mod gql_schema;
-mod graphql;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -42,7 +40,10 @@ async fn main() -> std::io::Result<()> {
         .await
         .map_err(std::io::Error::other)?;
 
-    let context = GraphQLContext { pool };
+    let context: GraphQLContext = GraphQLContext {
+        category_repository: Arc::new(PgCategoryRepository { pool: pool.clone() }),
+        transaction_repository: Arc::new(PgTransactionRepository { pool: pool.clone() }),
+    };
     let schema = Arc::new(gql_schema::create_schema());
 
     // Start the HTTP server

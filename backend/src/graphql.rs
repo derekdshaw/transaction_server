@@ -1,10 +1,12 @@
 use crate::db_models::{DbCategory, DbCategorySummary, DbTransaction};
+use crate::db_traits::{CategoryRepository, TransactionRepository};
 use chrono::{NaiveDate, NaiveDateTime};
 use juniper::{FieldResult, GraphQLObject};
 use rust_decimal::prelude::ToPrimitive;
 use sqlx::types::time::Date;
 use sqlx::types::BigDecimal;
 use std::str::FromStr;
+use std::sync::Arc;
 use time::macros::format_description;
 
 #[derive(GraphQLObject)]
@@ -115,7 +117,8 @@ impl From<DbCategorySummary> for CategorySummary {
 // GraphQL Context
 #[derive(Clone)]
 pub struct GraphQLContext {
-    pub pool: sqlx::PgPool,
+    pub category_repository: Arc<dyn CategoryRepository>,
+    pub transaction_repository: Arc<dyn TransactionRepository>,
 }
 
 // Implement Juniper's Context trait for our context
@@ -128,7 +131,9 @@ pub struct QueryRoot;
 impl QueryRoot {
     #[graphql(description = "Get all transactions")]
     async fn all_transactions(context: &GraphQLContext) -> FieldResult<Vec<Transaction>> {
-        DbTransaction::all(&context.pool)
+        context
+            .transaction_repository
+            .all()
             .await
             .map_err(Into::into)
             .map(|txs| txs.into_iter().map(Into::into).collect())
@@ -139,7 +144,9 @@ impl QueryRoot {
         context: &GraphQLContext,
         category_id: i32,
     ) -> FieldResult<Vec<Transaction>> {
-        DbTransaction::by_category_id(category_id, &context.pool)
+        context
+            .transaction_repository
+            .by_category_id(category_id)
             .await
             .map_err(Into::into)
             .map(|txs| txs.into_iter().map(Into::into).collect())
@@ -156,7 +163,9 @@ impl QueryRoot {
         let end_date = NaiveDate::parse_from_str(&end_date, "%Y-%m-%d")
             .map_err(|e| format!("Invalid end date format: {}, expected YYYY-MM-DD", e))?;
 
-        DbTransaction::by_date_range(&start_date, &end_date, &context.pool)
+        context
+            .transaction_repository
+            .by_date_range(&start_date, &end_date)
             .await
             .map_err(Into::into)
             .map(|txs| txs.into_iter().map(Into::into).collect())
@@ -173,7 +182,9 @@ impl QueryRoot {
         let end_date = NaiveDate::parse_from_str(&end_date, "%Y-%m-%d")
             .map_err(|e| format!("Invalid end date format: {}, expected YYYY-MM-DD", e))?;
 
-        DbTransaction::sum_by_category(&start_date, &end_date, &context.pool)
+        context
+            .transaction_repository
+            .sum_by_category(&start_date, &end_date)
             .await
             .map_err(Into::into)
             .map(|cats| cats.into_iter().map(Into::into).collect())
@@ -181,7 +192,9 @@ impl QueryRoot {
 
     #[graphql(description = "Get all categories")]
     async fn categories(context: &GraphQLContext) -> FieldResult<Vec<Category>> {
-        DbCategory::all(&context.pool)
+        context
+            .category_repository
+            .all()
             .await
             .map_err(Into::into)
             .map(|cats| cats.into_iter().map(Into::into).collect())
@@ -189,7 +202,9 @@ impl QueryRoot {
 
     #[graphql(description = "Get category by name")]
     async fn category_by_name(context: &GraphQLContext, name: String) -> FieldResult<Category> {
-        DbCategory::find_by_name(&name, &context.pool)
+        context
+            .category_repository
+            .find_by_name(&name)
             .await
             .map_err(Into::into)
             .map(|cat| cat.into())
@@ -210,7 +225,9 @@ impl MutationRoot {
         let amount = BigDecimal::from_str(&amount.to_string())?;
 
         let date = Date::parse(date.as_str(), format_description!("[year]-[month]-[day]")).unwrap();
-        DbTransaction::create(amount, description, date, category_id, &context.pool)
+        context
+            .transaction_repository
+            .create(amount, description, date, category_id)
             .await
             .map_err(Into::into)
             .map(|tx| tx.into())
@@ -227,15 +244,13 @@ impl MutationRoot {
         let amount = BigDecimal::from_str(&amount.to_string())?;
 
         let date = Date::parse(date.as_str(), format_description!("[year]-[month]-[day]")).unwrap();
-        DbTransaction::update(id, amount, description, date, category_id, &context.pool)
+        context
+            .transaction_repository
+            .update(id, amount, description, date, category_id)
             .await
             .map_err(Into::into)
             .map(|tx| tx.into())
     }
-
-    // async fn delete_transaction(context: &GraphQLContext, id: i32) -> FieldResult<bool> {
-    //     DbTransaction::delete(id, &context.pool).await.map_err(Into::into)
-    // }
 
     async fn create_category(
         context: &GraphQLContext,
@@ -244,7 +259,9 @@ impl MutationRoot {
         icon: Option<String>,
         color: Option<String>,
     ) -> FieldResult<Category> {
-        DbCategory::create(name, description, icon, color, &context.pool)
+        context
+            .category_repository
+            .create(name, description, icon, color)
             .await
             .map_err(Into::into)
             .map(|cat| cat.into())
@@ -258,13 +275,11 @@ impl MutationRoot {
         icon: Option<String>,
         color: Option<String>,
     ) -> FieldResult<Category> {
-        DbCategory::update(id, name, description, icon, color, &context.pool)
+        context
+            .category_repository
+            .update(id, name, description, icon, color)
             .await
             .map_err(Into::into)
             .map(|cat| cat.into())
     }
-
-    // async fn delete_category(context: &GraphQLContext, id: i32) -> FieldResult<bool> {
-    //     DbCategory::delete(id, &context.pool).await.map_err(Into::into)
-    // }
 }

@@ -1,5 +1,5 @@
 [package]
-name = "transaction-server"
+name = "transaction_server"
 version = "0.1.0"
 edition = "2021"
 build = "build.rs"
@@ -28,13 +28,19 @@ thiserror = "2.0.12"
 test-log = { version = "0.2.11", optional = true }
 tempfile = { version = "3.4.0", optional = true }
 dotenvy = { version = "0.15.7", optional = true }
-#testcontainers = { version = "0.24.0" }
+async-trait = "0.1.88"
+mockall = "0.11.4"
 
 [dev-dependencies]
 assert_matches = "1.5.0"
-mockall = "0.11.4"
 serial_test = "2.0.0"
 testcontainers-modules = { version = "0.12.0", features = ["postgres"] }
 
 [features]
-test-utils = ["tempfile", "test-log"]
+default = []
+test-utils = []
+
+[dev-dependencies.transaction_server]
+path = "."
+features = ["test-utils"]
+
