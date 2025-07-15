@@ -2,7 +2,7 @@ use chrono::NaiveDate;
 use juniper::{InputValue, Variables};
 use std::sync::Arc;
 use transaction_server::{
-    db_models::DbTransaction,
+    db_models::{DbTransaction, DbCategorySummary},
     db_traits::{MockCategoryRepository, MockTransactionRepository},
     gql_schema::create_schema,
 };
@@ -23,12 +23,13 @@ fn assert_transaction_object(
     expected: &DbTransaction,
     i: usize,
 ) {
-    assert_scalar_value!(obj, "id", i32, expected.id, format!("transaction at index {}", i));
-    assert_scalar_value!(obj, "amount", f64, expected.amount.to_f64().unwrap(), format!("transaction at index {}", i));
-    assert_scalar_value!(obj, "description", String, expected.description, format!("transaction at index {}", i));
-    assert_scalar_value!(obj, "date", String, format_date(&expected.date), format!("transaction at index {}", i));
-    assert_scalar_value!(obj, "categoryId", i32, expected.category_id, format!("transaction at index {}", i));
-    assert_optional_scalar_value!(obj, "categoryName", String, &expected.category_name, format!("transaction at index {}", i));
+    let context = format!("transaction at index {}", i);
+    assert_scalar_value!(obj, "id", i32, expected.id, &context);
+    assert_scalar_value!(obj, "amount", f64, expected.amount.to_f64().unwrap(), &context);
+    assert_scalar_value!(obj, "description", String, expected.description, &context);
+    assert_scalar_value!(obj, "date", String, format_date(&expected.date), &context);
+    assert_scalar_value!(obj, "categoryId", i32, expected.category_id, &context);
+    assert_optional_scalar_value!(obj, "categoryName", String, &expected.category_name, &context);
 
     fn format_datetime_opt(dt: &Option<time::OffsetDateTime>) -> Option<String> {
         dt.map(|d| d.format(&time::format_description::well_known::Rfc3339).unwrap())
@@ -37,8 +38,26 @@ fn assert_transaction_object(
     let expected_created = format_datetime_opt(&expected.created_at);
     let expected_updated = format_datetime_opt(&expected.updated_at);
 
-    assert_optional_scalar_value!(obj, "created_at", String, expected_created, format!("transaction at index {}", i));
-    assert_optional_scalar_value!(obj, "updated_at", String, expected_updated, format!("transaction at index {}", i));
+    assert_optional_scalar_value!(obj, "createdAt", String, expected_created, &context);
+    assert_optional_scalar_value!(obj, "updatedAt", String, expected_updated, &context);
+}
+
+fn assert_summary_object(
+    obj: &juniper::Object<juniper::DefaultScalarValue>,
+    expected: &DbCategorySummary,
+    i: usize,
+) {
+    let context = format!("category summary at index {}", i);
+    
+    assert_scalar_value!(obj, "categoryId", i32, expected.category_id, &context);
+    assert_optional_scalar_value!(obj, "categoryName", String, &expected.category_name, &context);
+    
+    // For non-nullable fields that are wrapped in Option in the DB model
+    let total_amount = expected.total_amount.clone().expect("Total amount should not be null").to_f64().unwrap();
+    assert_scalar_value!(obj, "totalAmount", f64, total_amount, &context);
+    
+    let transaction_count = expected.transaction_count.expect("Transaction count should not be null").to_i32().unwrap();
+    assert_scalar_value!(obj, "transactionCount", i32, transaction_count, &context);
 }
 
 #[tokio::test]
@@ -117,7 +136,7 @@ async fn test_all() {
 }
 
 #[tokio::test]
-async fn test_transactions_by_category() {
+async fn test_by_category() {
     let mock_category_repository = Arc::new(MockCategoryRepository::new());
     let mut mock_transaction_repository = Arc::new(MockTransactionRepository::new());
     let mock =
@@ -193,7 +212,7 @@ async fn test_transactions_by_category() {
 }
 
 #[tokio::test]
-async fn test_transactions_by_date_range() {
+async fn test_by_date_range() {
     let mock_category_repository = Arc::new(MockCategoryRepository::new());
     let mut mock_transaction_repository = Arc::new(MockTransactionRepository::new());
     let mock =
@@ -267,6 +286,68 @@ async fn test_transactions_by_date_range() {
 
     //assert_transaction_fields!(data, "transactions", transactions);
     assert_object_fields!(data, "transactionsByDateRange", transactions, assert_transaction_object);
+}
+
+#[tokio::test]
+async fn test_summary_by_category() {
+    let mock_category_repository = Arc::new(MockCategoryRepository::new());
+    let mut mock_transaction_repository = Arc::new(MockTransactionRepository::new());
+    let mock =
+        Arc::get_mut(&mut mock_transaction_repository).expect("Failed to get mutable reference");
+
+    let summaries = vec![
+        DbCategorySummary {
+            category_id: 1,
+            category_name: Some("Housewares".to_string()),
+            total_amount: Some(BigDecimal::from_f64(1001.0).unwrap()),
+            transaction_count: Some(1),
+        },
+        DbCategorySummary {
+            category_id: 2,
+            category_name: Some("Utilities".to_string()),
+            total_amount: Some(BigDecimal::from_f64(250.0).unwrap()),
+            transaction_count: Some(5),
+        },
+        DbCategorySummary {
+            category_id: 3,
+            category_name: Some("Groceries".to_string()),
+            total_amount: Some(BigDecimal::from_f64(982.45).unwrap()),
+            transaction_count: Some(55),
+        },
+    ];
+
+    // due to borrowing we need to clone the test_category
+    let expected_summaries = summaries.clone();
+    mock.expect_sum_by_category()
+        .returning(move |_start_date: &NaiveDate, _end_date: &NaiveDate| Ok(expected_summaries.clone()));
+
+    // must be created after expect setup for borrow checker.
+    let context_mock = get_context(
+        mock_category_repository.clone(),
+        mock_transaction_repository.clone(),
+    );
+    let schema = create_schema();
+
+    let query = r#"
+        query TransactionsSummaryByCategory($startDate: String!, $endDate: String!) {
+            transactionsSummaryByCategory(startDate: $startDate, endDate: $endDate) {
+                categoryId
+                categoryName
+                totalAmount
+                transactionCount
+            }
+        }
+    "#;
+
+    let mut variables = Variables::new();
+    variables.insert("startDate".to_string(), InputValue::scalar("2025-01-01".to_string()));
+    variables.insert("endDate".to_string(), InputValue::scalar("2025-01-31".to_string()));
+    let result = juniper::execute(query, None, &schema, &variables, &context_mock).await;
+
+    let (data, errors) = result.expect("Query execution failed");
+    assert!(errors.is_empty(), "Unexpected GraphQL errors: {:?}", errors);
+
+    assert_object_fields!(data, "transactionsSummaryByCategory", summaries, assert_summary_object);
 }
 
 #[tokio::test]

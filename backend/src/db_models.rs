@@ -7,7 +7,7 @@ use sqlx::types::BigDecimal;
 use sqlx::FromRow;
 use sqlx::PgPool;
 
-#[derive(FromRow, Debug)]
+#[derive(FromRow, Debug, Clone)]
 pub struct DbCategorySummary {
     pub category_id: i32,
     pub category_name: Option<String>,
