@@ -15,7 +15,7 @@ pub struct DbCategorySummary {
     pub transaction_count: Option<i64>,
 }
 
-#[derive(FromRow)]
+#[derive(FromRow, Debug, Clone)]
 pub struct DbCategory {
     pub id: i32,
     pub name: String,
@@ -26,7 +26,7 @@ pub struct DbCategory {
     pub updated_at: Option<OffsetDateTime>,
 }
 
-#[derive(sqlx::FromRow)]
+#[derive(sqlx::FromRow, Debug, Clone)]
 pub struct DbTransaction {
     pub id: i32,
     pub amount: BigDecimal,

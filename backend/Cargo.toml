@@ -6,6 +6,7 @@ build = "build.rs"
 
 [dependencies]
 sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio", "bigdecimal", "time"] }
+indexmap = "^2.10"
 tokio = { version = "1.45.1", features = ["full"] }
 actix-web = "4.11.0"
 actix-files = "^0.6"
@@ -35,6 +36,7 @@ mockall = "0.11.4"
 assert_matches = "1.5.0"
 serial_test = "2.0.0"
 testcontainers-modules = { version = "0.12.0", features = ["postgres"] }
+bigdecimal = "0.3"
 
 [features]
 default = []

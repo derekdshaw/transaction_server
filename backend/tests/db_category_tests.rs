@@ -1,6 +1,6 @@
 use transaction_server::{
-    db_models::{DbCategory, PgCategoryRepository},
-    db_traits::{CategoryRepository, TransactionRepository},
+    db_models::PgCategoryRepository,
+    db_traits::CategoryRepository,
 };
 // Import from the current test crate
 mod common;

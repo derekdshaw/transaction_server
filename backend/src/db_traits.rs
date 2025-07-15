@@ -1,11 +1,10 @@
 use crate::db_models::{DbCategory, DbCategorySummary, DbTransaction};
 use async_trait::async_trait;
 use chrono::NaiveDate;
-use mockall::automock;
 use sqlx::types::time::Date;
 use sqlx::types::BigDecimal;
 
-#[cfg_attr(feature = "test-utils", automock)]
+#[cfg_attr(feature = "test-utils", mockall::automock)]
 #[async_trait]
 pub trait CategoryRepository: Send + Sync {
     async fn all(&self) -> Result<Vec<DbCategory>, sqlx::Error>;
@@ -27,7 +26,7 @@ pub trait CategoryRepository: Send + Sync {
     ) -> Result<DbCategory, sqlx::Error>;
 }
 
-#[cfg_attr(feature = "test-utils", automock)]
+#[cfg_attr(feature = "test-utils", mockall::automock)]
 #[async_trait]
 pub trait TransactionRepository: Send + Sync {
     async fn all(&self) -> Result<Vec<DbTransaction>, sqlx::Error>;
