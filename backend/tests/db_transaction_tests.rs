@@ -3,7 +3,7 @@ use sqlx::types::time::Date;
 use sqlx::types::BigDecimal;
 use time::Month;
 use transaction_server::{
-    db_models::{DbTransaction, PgCategoryRepository, PgTransactionRepository},
+    db_models::{PgCategoryRepository, PgTransactionRepository},
     db_traits::{CategoryRepository, TransactionRepository},
 };
 mod common;
