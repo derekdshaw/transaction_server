@@ -14,6 +14,8 @@ interface StartEndDatePickerProps {
     className?: string;
     labelFormat?: string;
     disableFuture?: boolean;
+    startDate?: Dayjs | string;
+    endDate?: Dayjs | string;
 }
 
 export default function StartEndDatePicker({
@@ -24,6 +26,8 @@ export default function StartEndDatePicker({
     className = '',
     labelFormat = 'MM/DD/YYYY',
     disableFuture = true,
+    startDate: controlledStartDate,
+    endDate: controlledEndDate,
 }: StartEndDatePickerProps) {
     // Use the date filters hook for state management
     const {
@@ -33,43 +37,45 @@ export default function StartEndDatePicker({
     } = useDateFilters(storageKey, defaultStartDate, defaultEndDate);
 
     // Memoized dayjs objects for the date pickers
-    const { startDate, endDate } = useMemo(() => ({
-        startDate: startDateStr ? dayjs(startDateStr) : dayjs(defaultStartDate),
-        endDate: endDateStr ? dayjs(endDateStr) : dayjs(defaultEndDate),
-    }), [startDateStr, endDateStr, defaultStartDate, defaultEndDate]);
+    // Determine the actual date values: controlled or from hook
+    const startDate = useMemo(() =>
+        controlledStartDate
+            ? dayjs(controlledStartDate)
+            : (startDateStr ? dayjs(startDateStr) : dayjs(defaultStartDate)),
+        [controlledStartDate, startDateStr, defaultStartDate]
+    );
+    const endDate = useMemo(() =>
+        controlledEndDate
+            ? dayjs(controlledEndDate)
+            : (endDateStr ? dayjs(endDateStr) : dayjs(defaultEndDate)),
+        [controlledEndDate, endDateStr, defaultEndDate]
+    );
 
     // Handle date changes
-    const handleStartDateChange = useCallback((date: Dayjs | null) => {
-        if (!date) return;
-
-        setDateFilters(prev => {
-            const currentEnd = prev.endDate ? dayjs(prev.endDate) : dayjs(defaultEndDate);
-
-            // Ensure start date is not after end date
-            const newEnd = date.isAfter(currentEnd) ? date : currentEnd;
-
-            return {
-                startDate: date,
-                endDate: newEnd,
-            };
-        });
-    }, [defaultEndDate, setDateFilters]);
-
-    const handleEndDateChange = useCallback((date: Dayjs | null) => {
-        if (!date) return;
-
-        setDateFilters(prev => {
-            const currentStart = prev.startDate ? dayjs(prev.startDate) : dayjs(defaultStartDate);
-
-            // Ensure end date is not before start date
-            const newStart = date.isBefore(currentStart) ? date : currentStart;
-
-            return {
-                startDate: newStart,
-                endDate: date,
-            };
-        });
-    }, [defaultStartDate, setDateFilters]);
+        // Handle date changes
+        const handleStartDateChange = useCallback((date: Dayjs | null) => {
+            if (!date) return;
+            if (controlledStartDate && onDatesChange) {
+                onDatesChange(date, endDate);
+            } else {
+                setDateFilters(prev => ({
+                    ...prev,
+                    startDate: date
+                }));
+            }
+        }, [controlledStartDate, onDatesChange, endDate, setDateFilters]);
+    
+        const handleEndDateChange = useCallback((date: Dayjs | null) => {
+            if (!date) return;
+            if (controlledEndDate && onDatesChange) {
+                onDatesChange(startDate, date);
+            } else {
+                setDateFilters(prev => ({
+                    ...prev,
+                    endDate: date
+                }));
+            }
+        }, [controlledEndDate, onDatesChange, startDate, setDateFilters]);
 
     // Notify parent component of date changes only when dates actually change
     const prevDatesRef = useRef({ startDate: startDateStr, endDate: endDateStr });

@@ -26,17 +26,22 @@ interface FilterValues {
   category: string;
 }
 
+interface TransactionTableProps {
+  initialStartDate?: string;
+  initialEndDate?: string;
+}
+
 const TRANSACTIONS_TABLE_DATE_FILTERS_STORAGE_KEY = 'transactionTableDateFilters';
 
-export default function TransactionsTable() {
+export default function TransactionsTable({ initialStartDate, initialEndDate, ...props }: TransactionTableProps) {
   const { transactions: initialTransactions, loading, error, refetch } = useTransactions();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'date', direction: 'desc' });
   const [dateRange, setDateRange] = useState(() => {
     const savedDates = getDateFilters(TRANSACTIONS_TABLE_DATE_FILTERS_STORAGE_KEY);
     return {
-      startDate: savedDates?.startDate || dayjs().startOf('month'),
-      endDate: savedDates?.endDate || dayjs()
+      startDate: initialStartDate ? dayjs(initialStartDate) : savedDates?.startDate || dayjs().startOf('month'),
+      endDate: initialEndDate ? dayjs(initialEndDate) : savedDates?.endDate || dayjs()
     };
   });
 
@@ -260,6 +265,8 @@ export default function TransactionsTable() {
               storageKey={TRANSACTIONS_TABLE_DATE_FILTERS_STORAGE_KEY}
               onDatesChange={handleDateRangeChange}
               className="w-full"
+              startDate={dateRange.startDate}
+              endDate={dateRange.endDate}
             />
           </FormControl>
           <FormControl size="sm" sx={{ flex: 1 }}>
@@ -342,6 +349,7 @@ export default function TransactionsTable() {
         stickyHeader
         hoverRow
         sx={{ minWidth: 650 }}
+        role="table"
       >
         <thead>
           <tr>
