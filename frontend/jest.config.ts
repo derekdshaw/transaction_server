@@ -9,7 +9,7 @@ const config: JestConfigWithTsJest = {
     '^.+\\.(ts|tsx)$': 'ts-jest'
   },
   testMatch: [
-    '**/__tests__/**/*.+(ts|tsx|js)',
+    '**/__tests__/**/*.(spec|test).+(ts|tsx|js)',
     '**/?(*.)+(spec|test).+(ts|tsx|js)',
   ],
   // if you use absolute imports, mirror paths from tsconfig.json:

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, UseClientRequestOptions } from 'graphql-hooks';
+import { useQuery, useMutation } from 'graphql-hooks';
 
 interface AllTransactionData {
   allTransactions: Transaction[];

@@ -1,18 +1,7 @@
-import React from 'react';
-import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
-import { CssVarsProvider, extendTheme } from '@mui/joy/styles';
-import { GraphQLClient, ClientContext } from 'graphql-hooks';
+import { screen, waitFor, within, cleanup } from '@testing-library/react';
 import TransactionTable from '../TransactionsTable';
-import { LocalizationProvider } from '@mui/x-date-pickers';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { CssBaseline } from '@mui/joy';
-import {
-    createTheme,
-    ThemeProvider,
-    THEME_ID as MATERIAL_THEME_ID,
-} from '@mui/material/styles';
-import { useTransactions, useUpdateTransaction } from '../../hooks/transactions';
-import userEvent from '@testing-library/user-event';
+import { useTransactions } from '../../hooks/transactions';
+import { renderWithProviders } from './utils';
 
 // Mock the useTransactions hook
 jest.mock('../../hooks/transactions', () => ({
@@ -35,42 +24,16 @@ interface Transaction {
     categoryId: number;
 }
 
-const materialTheme = createTheme({
-    palette: {
-        mode: 'dark',
-    },
-});
-
-const theme = extendTheme({});
-
 const mockTransactions: Transaction[] = [
     { id: '1', date: '2024-01-01', description: 'Test Transaction 1', amount: 100, categoryName: 'Food', categoryId: 1 },
     { id: '2', date: '2024-01-02', description: 'Test Transaction 2', amount: -50, categoryName: 'Transport', categoryId: 2 },
     { id: '3', date: '2024-01-03', description: 'Test Transaction 3', amount: 200, categoryName: 'Income', categoryId: 3 },
 ];
 
-
-function renderWithProviders(
-    ui: React.ReactElement,
-    { client = new GraphQLClient({ url: 'http://localhost/fake-graphql' }) }: { client?: GraphQLClient } = {}
-) {
-    return render(
-        <ClientContext.Provider value={client}>
-            <ThemeProvider theme={{ [MATERIAL_THEME_ID]: materialTheme }}>
-                <CssVarsProvider theme={theme} disableNestedContext>
-                    <LocalizationProvider dateAdapter={AdapterDayjs}>
-                        <CssBaseline />
-                        {ui}
-                    </LocalizationProvider>
-                </CssVarsProvider>
-            </ThemeProvider>
-        </ClientContext.Provider>
-    );
-}
-
 describe('TransactionTable', () => {
-    beforeEach(() => {
+    afterEach(() => {
         jest.clearAllMocks();
+        jest.clearAllTimers();
     });
 
     // 1. Basic Render & Data Display
@@ -83,7 +46,6 @@ describe('TransactionTable', () => {
         });
 
         renderWithProviders(<TransactionTable initialStartDate="2024-01-01" initialEndDate="2024-01-31" />);
-
 
         const table = await screen.findByRole('table', { name: /transactions table/i });
         expect(table).toBeInTheDocument();
