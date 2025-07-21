@@ -78,19 +78,7 @@ describe('StartEndDatePicker', () => {
         await userEvent.click(screen.getAllByLabelText(/choose date/i)[0]);
 
         // Now find the day we want to click on for the current month.
-        const dialog = await screen.findByRole('dialog');
-        const nodes = Array.from(dialog.querySelectorAll('.MuiDayCalendar-weekContainer')) as HTMLElement[];
-        const gridcells = within(nodes[0]).getAllByRole('gridcell');
-
-        // Try to select the 2nd of the month (simulate calendar interaction)
-        let dayButton: HTMLButtonElement | undefined;
-
-        for (const cell of gridcells) {
-            if (cell instanceof HTMLButtonElement && cell.textContent?.trim() === '2') {
-                dayButton = cell;
-                break;
-            }
-        }
+        const dayButton = getDayButton(2);
         expect(dayButton).toBeInTheDocument();
         await userEvent.click(dayButton!);
 
@@ -112,20 +100,7 @@ describe('StartEndDatePicker', () => {
         await userEvent.click(screen.getAllByLabelText(/choose date/i)[1]);
 
         // Now find the day we want to click on for the current month.
-        const dialog = await screen.findByRole('dialog');
-        const nodes = Array.from(dialog.querySelectorAll('.MuiDayCalendar-weekContainer')) as HTMLElement[];
-        const gridcells = within(nodes[0]).getAllByRole('gridcell');
-
-        // Try to select the 2nd of the month (simulate calendar interaction)
-        let dayButton: HTMLButtonElement | undefined;
-
-        for (const cell of gridcells) {
-            if (cell instanceof HTMLButtonElement && cell.textContent?.trim() === '2') {
-                dayButton = cell;
-                break;
-            }
-        }
-
+        const dayButton = getDayButton(2);
         expect(dayButton).toBeInTheDocument();
         await userEvent.click(dayButton!);
 

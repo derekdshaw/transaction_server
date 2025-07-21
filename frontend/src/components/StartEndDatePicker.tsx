@@ -1,10 +1,8 @@
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs, { Dayjs } from 'dayjs';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useDateFilters } from '../hooks/datefilters';
-import { FormControl, FormLabel, Stack, Box } from '@mui/joy';
+import { Box } from '@mui/joy';
 
 interface StartEndDatePickerProps {
     storageKey: string;
@@ -51,31 +49,29 @@ export default function StartEndDatePicker({
         [controlledEndDate, endDateStr, defaultEndDate]
     );
 
-    // Handle date changes
-        // Handle date changes
-        const handleStartDateChange = useCallback((date: Dayjs | null) => {
-            if (!date) return;
-            if (controlledStartDate && onDatesChange) {
-                onDatesChange(date, endDate);
-            } else {
-                setDateFilters(prev => ({
-                    ...prev,
-                    startDate: date
-                }));
-            }
-        }, [controlledStartDate, onDatesChange, endDate, setDateFilters]);
-    
-        const handleEndDateChange = useCallback((date: Dayjs | null) => {
-            if (!date) return;
-            if (controlledEndDate && onDatesChange) {
-                onDatesChange(startDate, date);
-            } else {
-                setDateFilters(prev => ({
-                    ...prev,
-                    endDate: date
-                }));
-            }
-        }, [controlledEndDate, onDatesChange, startDate, setDateFilters]);
+    const handleStartDateChange = useCallback((date: Dayjs | null) => {
+        if (!date) return;
+        if (controlledStartDate && onDatesChange) {
+            onDatesChange(date, endDate);
+        } else {
+            setDateFilters(prev => ({
+                ...prev,
+                startDate: date
+            }));
+        }
+    }, [controlledStartDate, onDatesChange, endDate, setDateFilters]);
+
+    const handleEndDateChange = useCallback((date: Dayjs | null) => {
+        if (!date) return;
+        if (controlledEndDate && onDatesChange) {
+            onDatesChange(startDate, date);
+        } else {
+            setDateFilters(prev => ({
+                ...prev,
+                endDate: date
+            }));
+        }
+    }, [controlledEndDate, onDatesChange, startDate, setDateFilters]);
 
     // Notify parent component of date changes only when dates actually change
     const prevDatesRef = useRef({ startDate: startDateStr, endDate: endDateStr });

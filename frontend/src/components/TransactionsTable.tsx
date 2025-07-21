@@ -10,7 +10,7 @@ import { useTransactions, type Transaction } from '../hooks/transactions';
 import { useUpdateTransaction } from '../hooks/transactions';
 import { Input, Stack, FormControl, FormLabel, Select, Option, Box } from '@mui/joy';
 import dayjs, { Dayjs } from 'dayjs';
-import { getDateFilters } from '../hooks/datefilters';
+import { getDateFilters, useDateFilters } from '../hooks/datefilters';
 import StartEndDatePicker from './StartEndDatePicker';
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -37,17 +37,15 @@ export default function TransactionsTable({ initialStartDate, initialEndDate, ..
   const { transactions: initialTransactions, loading, error, refetch } = useTransactions();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'date', direction: 'desc' });
-  const [dateRange, setDateRange] = useState(() => {
-    const savedDates = getDateFilters(TRANSACTIONS_TABLE_DATE_FILTERS_STORAGE_KEY);
-    return {
-      startDate: initialStartDate ? dayjs(initialStartDate) : savedDates?.startDate || dayjs().startOf('month'),
-      endDate: initialEndDate ? dayjs(initialEndDate) : savedDates?.endDate || dayjs()
-    };
-  });
+  const { startDate, endDate, setDateFilters } = useDateFilters(
+    TRANSACTIONS_TABLE_DATE_FILTERS_STORAGE_KEY,
+    initialStartDate || dayjs().startOf('month').format('YYYY-MM-DD'),
+    initialEndDate || dayjs().format('YYYY-MM-DD')
+  );
 
   // Memoize the date strings to prevent unnecessary refetches
-  const startDateStr = useMemo(() => dateRange.startDate.format('YYYY-MM-DD'), [dateRange.startDate]);
-  const endDateStr = useMemo(() => dateRange.endDate.format('YYYY-MM-DD'), [dateRange.endDate]);
+  const startDateStr = useMemo(() => (startDate ?? dayjs().startOf('month').format('YYYY-MM-DD')), [startDate]);
+  const endDateStr = useMemo(() => (endDate ?? dayjs().format('YYYY-MM-DD')), [endDate]);
 
   // Refetch when date range changes, using the memoized date strings
   useEffect(() => {
@@ -61,16 +59,11 @@ export default function TransactionsTable({ initialStartDate, initialEndDate, ..
   });
 
   const handleDateRangeChange = useCallback((newStartDate: Dayjs, newEndDate: Dayjs) => {
-    setDateRange(prev => {
-      const startChanged = !newStartDate.isSame(prev.startDate, 'day');
-      const endChanged = !newEndDate.isSame(prev.endDate, 'day');
-
-      if (startChanged || endChanged) {
-        return { startDate: newStartDate, endDate: newEndDate };
-      }
-      return prev;
-    });
-  }, []);
+    setDateFilters(() => ({
+  startDate: newStartDate,
+  endDate: newEndDate
+}));
+  }, [setDateFilters]);
 
   const [editingTransaction, setEditingTransaction] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<{ id: number; name: string } | null>(null);
@@ -109,8 +102,8 @@ export default function TransactionsTable({ initialStartDate, initialEndDate, ..
     // Apply filters
     result = result.filter(tx => {
       const transactionDate = dayjs(tx.date).startOf('day');
-      const curStartDate = dateRange.startDate?.startOf('day');
-      const curEndDate = dateRange.endDate?.endOf('day');
+      const curStartDate = dayjs(startDate).startOf('day');
+      const curEndDate = dayjs(endDate).endOf('day');
 
       const matchesStartDate = !curStartDate || !transactionDate.isBefore(curStartDate, 'day');
       const matchesEndDate = !curEndDate || !transactionDate.isAfter(curEndDate, 'day');
@@ -150,7 +143,7 @@ export default function TransactionsTable({ initialStartDate, initialEndDate, ..
     }
 
     return result;
-  }, [transactions, dateRange.startDate, dateRange.endDate, sortConfig, filters]);
+  }, [transactions, startDate, endDate, sortConfig, filters]);
 
   const handleFilterChange = (field: keyof FilterValues, value: string) => {
     setFilters(prev => ({
@@ -201,8 +194,6 @@ export default function TransactionsTable({ initialStartDate, initialEndDate, ..
     const displayMessage = gqlMessages || netMessage || 'An unexpected error occurred';
     return <Alert color="danger">{displayMessage}</Alert>;
   }
-
-  const displayTransactions = filteredAndSortedTransactions;
 
   if (!initialTransactions.length) {
     return <Alert color="neutral">No transactions found</Alert>;
@@ -263,10 +254,10 @@ export default function TransactionsTable({ initialStartDate, initialEndDate, ..
           <FormControl size="sm" sx={{ width: 510, pt: 3 }}>
             <StartEndDatePicker
               storageKey={TRANSACTIONS_TABLE_DATE_FILTERS_STORAGE_KEY}
+              startDate={startDate || dayjs().startOf('month')}
+              endDate={endDate || dayjs()}
               onDatesChange={handleDateRangeChange}
               className="w-full"
-              startDate={dateRange.startDate}
-              endDate={dateRange.endDate}
             />
           </FormControl>
           <FormControl size="sm" sx={{ flex: 1 }}>
@@ -376,7 +367,8 @@ export default function TransactionsTable({ initialStartDate, initialEndDate, ..
           </tr>
         </thead>
         <tbody>
-          {filteredAndSortedTransactions.map((tx) => (
+          {filteredAndSortedTransactions.length > 0 ? (
+            filteredAndSortedTransactions.map((tx) => (
             <tr key={tx.id}>
               <td>{tx.date}</td>
               <td>{tx.description}</td>
@@ -429,7 +421,14 @@ export default function TransactionsTable({ initialStartDate, initialEndDate, ..
                 )}
               </td>
             </tr>
-          ))}
+          ))
+          ) : (
+            <tr>
+              <td colSpan={4} style={{ textAlign: 'center', padding: '12px 16px' }}>
+                No transactions found for the selected date range
+              </td>
+            </tr>
+          )}
         </tbody>
       </Table>
     </Sheet>

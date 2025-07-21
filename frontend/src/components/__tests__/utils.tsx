@@ -5,6 +5,8 @@ import { createTheme as createMuiTheme, ThemeProvider, THEME_ID as MATERIAL_THEM
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { ClientContext, GraphQLClient } from 'graphql-hooks';
+import fs from 'fs';
+import path from 'path';
 
 const materialTheme = createMuiTheme({ palette: { mode: 'dark' } });
 const theme = extendTheme({});
@@ -29,4 +31,15 @@ export function renderWithProviders(
       )
     
       return result;    
+}
+
+export function dumpDOMToFile() {
+    const domString = document.documentElement.outerHTML;
+
+    // Write to a file (adjust path as needed)
+    fs.writeFileSync(
+      path.join(__dirname, 'dom-dump.html'),
+      domString,
+      'utf8'
+    );
 }

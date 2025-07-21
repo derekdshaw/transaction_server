@@ -1,4 +1,4 @@
-import { screen, waitFor, within, cleanup } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import TransactionTable from '../TransactionsTable';
 import { useTransactions } from '../../hooks/transactions';
 import { renderWithProviders } from './utils';
@@ -106,7 +106,7 @@ describe('TransactionTable', () => {
         renderWithProviders(<TransactionTable />);
         
         await waitFor(() => {
-            expect(screen.getByText(/no transactions found/i)).toBeInTheDocument();
+            expect(screen.getByText(/No transactions found/i)).toBeInTheDocument();
         });
     });
 

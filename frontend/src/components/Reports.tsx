@@ -84,7 +84,7 @@ export default function Reports() {
             </Box>
             {error && (
                 <Alert color="danger" sx={{ mb: 3 }}>
-                    Error loading reports: {error.toString()}
+                    Error loading reports: {error.fetchError?.message || error.graphQLErrors?.[0].message}
                 </Alert>
             )}
 
