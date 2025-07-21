@@ -59,7 +59,7 @@ The output will be a CSV file named transactions_classified.csv in the data/proc
 
 ## Model
 
-The model is stored in the models/bert_classifier directory. The model is a BERT model that has been fine-tuned on my personal transaction data. It may or may not be usefule for you if you don't want to train on your own data.
+The model is stored in the models/bert_classifier directory. The model is a BERT model that has been fine-tuned on my personal transaction data. It may or may not be useful for you if you don't want to train on your own data.
 
 
 
