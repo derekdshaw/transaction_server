@@ -85,7 +85,8 @@ A Python FastAPI microservice that provides savings recommendations using transa
   - HTTP API for integration with frontend or other services
   - CORS enabled for frontend access
 - **Setup:**
-  1. Install GPT4All model (for local LLM)
+  1. Install GPT4All model (for local LLM) Optional
+     - The frontend uses the external OpenAI endpoint, if you want to use a local LLM you can set this up instead and change the frontend code to pass `use_external_agent` as false. 
      - Go to https://www.nomic.ai/gpt4all, download a compatible model (e.g., gpt4all-13b-snoozy-q4_0.gguf), and place it in the `models/` directory or set the path in `.env`.
   2. Install dependencies:
      ```bash
