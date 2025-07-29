@@ -2,8 +2,6 @@
 
 This monorepo contains a full-stack financial transaction management platform, including a backend API, a modern frontend web app, and a machine learning classifier for transaction categorization.
 
----
-
 ## Projects Overview
 
 ### 1. Backend (`backend/`)
@@ -75,8 +73,39 @@ A Python-based BERT NLP pipeline for classifying transaction descriptions into c
 
 ---
 
+### 4. Agent (`agent/`)
+A Python FastAPI microservice that provides savings recommendations using transaction data from the database. It supports both local LLM (GPT4All) and OpenAI GPT-4 integration, returning structured recommendations in JSON format for easy frontend consumption.
+
+- **Tech:** Python 3, FastAPI, GPT4All, OpenAI API, SQLAlchemy
+- **Features:**
+  - Uses a local LLM (GPT4All) for recommendations (customizable)
+  - Optionally calls OpenAI GPT-4 for advanced recommendations
+  - Date filtering: select start and end dates for transaction analysis
+  - Returns recommendations as structured JSON objects (description + actions)
+  - HTTP API for integration with frontend or other services
+  - CORS enabled for frontend access
+- **Setup:**
+  1. Install GPT4All model (for local LLM)
+     - Go to https://www.nomic.ai/gpt4all, download a compatible model (e.g., gpt4all-13b-snoozy-q4_0.gguf), and place it in the `models/` directory or set the path in `.env`.
+  2. Install dependencies:
+     ```bash
+     pip install -r requirements.txt
+     ```
+  3. (Optional) Set up OpenAI API key in `.env` for external agent:
+     ```
+     OPENAI_API_KEY=your-key-here
+     ```
+  4. Run the service:
+     ```bash
+     uvicorn main:app --reload
+     ```
+- **See:** [`agent/README.md`](agent/README.md)
+
+---
+
 ## Integration
 - The **frontend** communicates with the **backend** via GraphQL.
+- The **frontend** also communicates with the **agent** for savings recommendations.
 - The **classifier** can be used to enrich transaction data before or after ingestion into the backend.
 
 ## License
