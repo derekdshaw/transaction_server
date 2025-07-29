@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { Typography } from '@mui/joy';
 import TransactionsTable from './components/TransactionsTable';
 import Dashboard from './components/Dashboard';
+import Recommendations from './components/Recommendations';
 import Reports from './components/Reports';
 import SplitLayout from './components/SplitLayout';
 import { Grid } from '@mui/joy';
 import Button from '@mui/joy/Button';
-type ViewType = 'transactions' | 'dashboard' | 'reports';
+type ViewType = 'transactions' | 'dashboard' | 'reports' | 'recommendations';
 
 export default function App() {
   const [activeView, setActiveView] = useState<ViewType>('transactions');
@@ -19,6 +20,8 @@ export default function App() {
         return <Dashboard />;
       case 'reports':
         return <Reports />;
+      case 'recommendations':
+        return <Recommendations />;
       default:
         return <div>empty</div>;
     }
@@ -58,6 +61,17 @@ export default function App() {
             sx={{ justifyContent: 'flex-start' }}
           >
             Reports
+          </Button>
+        </Grid>
+        <Grid>
+          <Button 
+            variant={activeView === 'recommendations' ? 'solid' : 'plain'}
+            color={activeView === 'recommendations' ? 'primary' : 'neutral'}
+            onClick={() => setActiveView('recommendations')}
+            fullWidth
+            sx={{ justifyContent: 'flex-start' }}
+          >
+            Recommendations
           </Button>
         </Grid>
       </Grid>

@@ -9,7 +9,7 @@ param(
 )
 
 # Load environment variables from .env
-$envFile = Join-Path $PSScriptRoot "..\..\.env"
+$envFile = Join-Path $PSScriptRoot "..\.env"
 if (Test-Path $envFile) {
     Get-Content $envFile | ForEach-Object {
         if (-not [string]::IsNullOrWhiteSpace($_) -and $_ -notlike '#*') {
